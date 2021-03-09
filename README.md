@@ -9,3 +9,8 @@ Exemplo 2:
 ```$ python3 main.py "12-32+100"```  
 Exemplo 3  
 ```$ python3 main.py "58   + 10  - 2"```
+
+## Diagrama Sintático
+
+![Diagrama.](https://imgur.com/Cam5t2E.jpeg "Diagrama Sintático.")
+

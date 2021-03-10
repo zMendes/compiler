@@ -38,12 +38,6 @@ class Tokenizer:
         elif self.origin[self.position] == "-":
             self.actual = Token("SUB", None)
 
-        elif self.origin[self.position] == "*":
-            self.actual = Token("MULT", None)
-
-        elif self.origin[self.position] == "/":
-            self.actual = Token("DIV", None)
-
         elif self.origin[self.position] == " ":
             self.selectNext()
 
@@ -59,6 +53,9 @@ class Parser:
 
             result = self.tokens.actual.value
             self.tokens.selectNext()
+            if self.tokens.actual.type_ == "INT":
+                    raise ValueError
+
             while self.tokens.actual.type_ == "PLUS" or self.tokens.actual.type_ == "SUB" or self.tokens.actual.type_ == "MULT" or self.tokens.actual.type_ == "DIV":
                 
                 if self.tokens.actual.type_ == "PLUS":
@@ -75,19 +72,6 @@ class Parser:
                     else:
                         raise ValueError
                 
-                if self.tokens.actual.type_ == "MULT":
-                    self.tokens.selectNext()
-                    if self.tokens.actual.type_ == "INT":
-                        result *= self.tokens.actual.value
-                    else:
-                        raise ValueError
-                
-                if self.tokens.actual.type_ == "DIV":
-                    self.tokens.selectNext()
-                    if self.tokens.actual.type_ == "INT":
-                        result /= self.tokens.actual.value
-                    else:
-                        raise ValueError
                 self.tokens.selectNext()
                 if self.tokens.actual.type_ == "INT":
                     raise ValueError
@@ -103,5 +87,5 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    command = " ".join(sys.argv[1:])  # .replace(" ", "")
+    command = " ".join(sys.argv[1:])
     print(parser.run(command))

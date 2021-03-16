@@ -12,5 +12,5 @@ Exemplo 3
 
 ## Diagrama Sintático
 
-![Diagrama.](https://imgur.com/Cam5t2E.jpeg "Diagrama Sintático.")
+![Diagrama.](https://i.imgur.com/NWF284t.png "Diagrama Sintático.")
 

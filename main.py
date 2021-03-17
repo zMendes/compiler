@@ -136,7 +136,7 @@ class Parser:
                 # self.tokens.selectNext()
                 # if self.tokens.actual.type_ == "INT":
                  #   raise ValueError
-            return result
+            return int(result)
         else:
             raise ValueError
 

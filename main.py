@@ -73,6 +73,12 @@ class Tokenizer:
         elif self.origin[self.position] == "/":
             self.actual = Token("DIV", None)
 
+        elif self.origin[self.position] == "(":
+            self.actual = Token("BRACKET_OPEN", None)
+        
+        elif self.origin[self.position] == ")":
+            self.actual = Token("BRACKET_CLOSE", None)
+
         elif self.origin[self.position] == " ":
             self.selectNext()
 
@@ -82,8 +88,36 @@ class Tokenizer:
 
 class Parser:
 
+    def parseFactor(self):
+        result = 0;
+        if self.tokens.actual.type_ == "INT":
+            result = self.tokens.actual.value
+        
+        elif self.tokens.actual.type_ == "PLUS":
+            self.tokens.selectNext()
+            result += self.parseFactor()
+        
+        elif self.tokens.actual.type_ == "SUB":
+            self.tokens.selectNext()
+            result -= self.parseFactor()
+        
+        elif self.tokens.actual.type_ == "BRACKET_OPEN":
+            self.tokens.selectNext()
+            result = self.parseExpression()
+            if self.tokens.actual.type_ != "BRACKET_CLOSE":
+                raise ValueError
+        
+        else:
+           raise ValueError
+        
+        return result
+            
+
+
+
     def parseTerm(self):
-        result = self.tokens.actual.value
+        
+        result = self.parseFactor()
 
         self.tokens.selectNext()
 
@@ -94,17 +128,11 @@ class Parser:
 
             if self.tokens.actual.type_ == "MULTI":
                 self.tokens.selectNext()
-                if self.tokens.actual.type_ == "INT":
-                    result *= self.tokens.actual.value
-                else:
-                    raise ValueError
+                result *= self.parseFactor()
 
             if self.tokens.actual.type_ == "DIV":
                 self.tokens.selectNext()
-                if self.tokens.actual.type_ == "INT":
-                    result /= self.tokens.actual.value
-                else:
-                    raise ValueError
+                result /= self.parseFactor()
             
             self.tokens.selectNext()
             if self.tokens.actual.type_ == "INT":
@@ -114,31 +142,22 @@ class Parser:
 
     def parseExpression(self):
 
-        if self.tokens.actual.type_ == "INT":
             result = self.parseTerm()
 
             while self.tokens.actual.type_ == "PLUS" or self.tokens.actual.type_ == "SUB":
 
                 if self.tokens.actual.type_ == "PLUS":
                     self.tokens.selectNext()
-                    if self.tokens.actual.type_ == "INT":
-                        result += self.parseTerm()
-                    else:
-                        raise ValueError
+                    result += self.parseTerm()
 
                 if self.tokens.actual.type_ == "SUB":
                     self.tokens.selectNext()
-                    if self.tokens.actual.type_ == "INT":
-                        result -= self.parseTerm()
-                    else:
-                        raise ValueError
+                    result -= self.parseTerm()
 
                 # self.tokens.selectNext()
                 # if self.tokens.actual.type_ == "INT":
                  #   raise ValueError
             return int(result)
-        else:
-            raise ValueError
 
     def run(self, code):
         prepro = PrePro()

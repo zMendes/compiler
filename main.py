@@ -92,6 +92,7 @@ class Parser:
         result = 0;
         if self.tokens.actual.type_ == "INT":
             result = self.tokens.actual.value
+            self.tokens.selectNext()
         
         elif self.tokens.actual.type_ == "PLUS":
             self.tokens.selectNext()
@@ -106,6 +107,7 @@ class Parser:
             result = self.parseExpression()
             if self.tokens.actual.type_ != "BRACKET_CLOSE":
                 raise ValueError
+            self.tokens.selectNext()
         
         else:
            raise ValueError
@@ -119,7 +121,6 @@ class Parser:
         
         result = self.parseFactor()
 
-        self.tokens.selectNext()
 
         if self.tokens.actual.type_ == "INT":
             raise ValueError
@@ -134,7 +135,6 @@ class Parser:
                 self.tokens.selectNext()
                 result /= self.parseFactor()
             
-            self.tokens.selectNext()
             if self.tokens.actual.type_ == "INT":
                 raise ValueError
 
@@ -157,6 +157,7 @@ class Parser:
                 # self.tokens.selectNext()
                 # if self.tokens.actual.type_ == "INT":
                  #   raise ValueError
+
             return int(result)
 
     def run(self, code):
@@ -164,7 +165,10 @@ class Parser:
         filtered = prepro.filter(code)
         self.tokens = Tokenizer(filtered, -1, None)
         self.tokens.selectNext()
-        return self.parseExpression()
+        result = self.parseExpression()
+        if self.tokens.actual.type_ != "EOF":
+            raise ValueError
+        return result
 
 
 if __name__ == "__main__":

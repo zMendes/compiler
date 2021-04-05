@@ -1,7 +1,93 @@
 #!/usr/bin/python
 
 import sys
+from abc import ABCMeta, abstractmethod
+import copy
 
+
+
+class Node(metaclass=ABCMeta):
+    def __init__(self):
+        pass
+    
+    @property
+    @abstractmethod
+    def value():
+        pass
+
+    @property
+    @abstractmethod
+    def children():
+        pass
+
+    @abstractmethod
+    def Evaluate(self):
+        pass
+
+class BinOp(Node):
+    
+    children = list
+    value = int
+
+    def __init__(self, value):
+        self.value = value
+        self.children = [None] * 2
+    
+    def Evaluate(self):
+        a = self.children[0].Evaluate()
+        b = self.children[1].Evaluate()
+        if self.value == "PLUS":
+            return a + b
+        
+        elif self.value == "SUB":
+            return a - b
+
+        elif self.value == "MULTI":
+            return a * b
+        
+        elif self.value == "DIV":
+            return int(a / b)
+
+class UnOp(Node):
+    
+    children = list
+    value = int
+
+    def __init__(self, value):
+        self.value = value
+        self.children = [None] 
+    
+    def Evaluate(self):
+
+        if self.value == "PLUS":
+            return self.children[0].Evaluate()
+        elif self.value == "SUB":
+            return -self.children[0].Evaluate()
+
+
+class IntVal(Node):
+    
+    children = list
+    value = int
+
+    def __init__(self, value):
+        self.value = value
+        self.children = [] 
+    
+    def Evaluate(self):
+        return self.value
+
+class NoOp(Node):
+    
+    children = list
+    value = int
+
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+    
+    def Evaluate(self):
+        pass
 
 class Token:
 
@@ -49,7 +135,6 @@ class Tokenizer:
     def selectNext(self):
 
         self.position += 1
-        # print(self.origin[self.position])
         if self.position >= len(self.origin):
             self.actual = Token("EOF", None)
 
@@ -79,32 +164,35 @@ class Tokenizer:
         elif self.origin[self.position] == ")":
             self.actual = Token("BRACKET_CLOSE", None)
 
-        elif self.origin[self.position] == " ":
+        else:# self.origin[self.position] == " ":
             self.selectNext()
 
-        else:
-            raise ValueError
+        #else:
+        #    print(self.origin[self.position])
+        #    raise ValueError
 
 
 class Parser:
 
     def parseFactor(self):
-        result = 0;
+
         if self.tokens.actual.type_ == "INT":
-            result = self.tokens.actual.value
+            tree = IntVal(self.tokens.actual.value)
             self.tokens.selectNext()
         
         elif self.tokens.actual.type_ == "PLUS":
             self.tokens.selectNext()
-            result += self.parseFactor()
+            tree = UnOp("PLUS")
+            tree.children[0] = self.parseFactor() 
         
         elif self.tokens.actual.type_ == "SUB":
             self.tokens.selectNext()
-            result -= self.parseFactor()
+            tree = UnOp("SUB")
+            tree.children[0] = self.parseFactor()
         
         elif self.tokens.actual.type_ == "BRACKET_OPEN":
             self.tokens.selectNext()
-            result = self.parseExpression()
+            tree = self.parseExpression()
             if self.tokens.actual.type_ != "BRACKET_CLOSE":
                 raise ValueError
             self.tokens.selectNext()
@@ -112,14 +200,14 @@ class Parser:
         else:
            raise ValueError
         
-        return result
+        return tree
             
 
 
 
     def parseTerm(self):
         
-        result = self.parseFactor()
+        tree = self.parseFactor()
 
 
         if self.tokens.actual.type_ == "INT":
@@ -129,36 +217,45 @@ class Parser:
 
             if self.tokens.actual.type_ == "MULTI":
                 self.tokens.selectNext()
-                result *= self.parseFactor()
+                aux = BinOp("MULTI")
+                aux.children[0] = copy.deepcopy(tree)
+                aux.children[1] = self.parseFactor()
+                tree = copy.deepcopy(aux)
 
             if self.tokens.actual.type_ == "DIV":
                 self.tokens.selectNext()
-                result /= self.parseFactor()
+                aux = BinOp("DIV")
+                aux.children[0] = copy.deepcopy(tree)
+                aux.children[1] = self.parseFactor()
+                tree = copy.deepcopy(aux)
             
             if self.tokens.actual.type_ == "INT":
                 raise ValueError
 
-        return result
+        return tree
 
     def parseExpression(self):
 
-            result = self.parseTerm()
+            tree = self.parseTerm()
 
             while self.tokens.actual.type_ == "PLUS" or self.tokens.actual.type_ == "SUB":
 
                 if self.tokens.actual.type_ == "PLUS":
                     self.tokens.selectNext()
-                    result += self.parseTerm()
+                    aux = BinOp("PLUS")
+                    aux.children[0] = copy.deepcopy(tree)
+                    aux.children[1] = self.parseTerm()
+                    tree = copy.deepcopy(aux)
 
                 if self.tokens.actual.type_ == "SUB":
                     self.tokens.selectNext()
-                    result -= self.parseTerm()
+                    aux = BinOp("SUB")
+                    aux.children[0] = copy.deepcopy(tree)
+                    aux.children[1] = self.parseTerma()
+                    tree = copy.deepcopy(aux)
 
-                # self.tokens.selectNext()
-                # if self.tokens.actual.type_ == "INT":
-                 #   raise ValueError
 
-            return int(result)
+            return tree
 
     def run(self, code):
         prepro = PrePro()
@@ -173,5 +270,7 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    command = " ".join(sys.argv[1:])
-    print(parser.run(command))
+    file_name = " ".join(sys.argv[1:])
+    file = open(file_name, 'r')
+    content = file.readlines() 
+    print(parser.run(content).Evaluate())

@@ -99,7 +99,7 @@ class Token:
 class PrePro:
 
     def filter(self, text):
-        
+                
         # Implemnentação baseada a partir do código abaixo:
         # https://www.geeksforgeeks.org/remove-comments-given-cc-program/
         isComment = False
@@ -251,7 +251,7 @@ class Parser:
                     self.tokens.selectNext()
                     aux = BinOp("SUB")
                     aux.children[0] = copy.deepcopy(tree)
-                    aux.children[1] = self.parseTerma()
+                    aux.children[1] = self.parseTerm()
                     tree = copy.deepcopy(aux)
 
 
@@ -259,7 +259,7 @@ class Parser:
 
     def run(self, code):
         prepro = PrePro()
-        filtered = prepro.filter(code)
+        filtered = prepro.filter("".join(code))
         self.tokens = Tokenizer(filtered, -1, None)
         self.tokens.selectNext()
         result = self.parseExpression()

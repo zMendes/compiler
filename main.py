@@ -4,7 +4,18 @@ import sys
 from abc import ABCMeta, abstractmethod
 import copy
 
+class SymbolTable:
 
+    def __init__(self):
+        self.table = dict()
+    
+    def setVar(self, var, value):
+        self.table[var] = value
+    
+    def getVar(self, var):
+        return self.table[var]
+
+sb = SymbolTable()
 
 class Node(metaclass=ABCMeta):
     def __init__(self):
@@ -23,6 +34,17 @@ class Node(metaclass=ABCMeta):
     @abstractmethod
     def Evaluate(self):
         pass
+
+class BSt(Node):
+    children = list
+    value = int
+    
+    def __init__(self):
+        self.children = []
+
+    def Evaluate(self):
+        for child in self.children:
+            child.Evaluate()
 
 class BinOp(Node):
     
@@ -77,7 +99,16 @@ class IntVal(Node):
     def Evaluate(self):
         return self.value
 
-class NoOp(Node):
+class Print(Node):
+    children = list
+    value = int
+    def __init__(self):
+        self.children = [None]
+    
+    def Evaluate(self):
+        print(self.children[0].Evaluate())
+
+class Variable(Node):
     
     children = list
     value = int
@@ -87,7 +118,19 @@ class NoOp(Node):
         self.children = []
     
     def Evaluate(self):
+        return sb.getVar(self.value)
+
+class NoOp(Node):
+    
+    children = list
+    value = int
+
+    def __init__(self):
+        self.children = []
+    
+    def Evaluate(self):
         pass
+
 
 class Token:
 
@@ -131,13 +174,16 @@ class Tokenizer:
         self.origin = origin
         self.position = position
         self.actual = actual
+        self.invalid = ["(", ")", "/", "*", "-", "+", "=", ";", " "]
 
     def selectNext(self):
 
         self.position += 1
         if self.position >= len(self.origin):
             self.actual = Token("EOF", None)
-
+            return
+        if self.origin[self.position] == "n":
+            self.selectNext()
         elif self.origin[self.position].isnumeric():
             number = ""
             while self.position < len(self.origin) and self.origin[self.position].isnumeric():
@@ -163,13 +209,27 @@ class Tokenizer:
         
         elif self.origin[self.position] == ")":
             self.actual = Token("BRACKET_CLOSE", None)
+        
+        elif self.origin[self.position] == "=":
+            self.actual = Token("EQUAL", None)
+        
+        elif self.origin[self.position] == ";":
+            self.actual = Token("SEMICOLON", None)
 
-        else:# self.origin[self.position] == " ":
+        elif self.origin[self.position] != " " :
+            identifier = ""
+
+            while self.position < len(self.origin)  and self.origin[self.position] not in self.invalid:
+                identifier+= self.origin[self.position]
+                self.position +=1
+            self.position -=1
+            if (identifier == "println"):
+                self.actual = Token("PRINT", identifier)    
+            else:
+                self.actual = Token("IDENTIFIER", identifier)
+
+        else:
             self.selectNext()
-
-        #else:
-        #    print(self.origin[self.position])
-        #    raise ValueError
 
 
 class Parser:
@@ -196,6 +256,12 @@ class Parser:
             if self.tokens.actual.type_ != "BRACKET_CLOSE":
                 raise ValueError
             self.tokens.selectNext()
+
+        elif self.tokens.actual.type_ == "IDENTIFIER":
+            tree = Variable(self.tokens.actual.value)
+            self.tokens.selectNext()
+
+ 
         
         else:
            raise ValueError
@@ -256,16 +322,59 @@ class Parser:
 
 
             return tree
+    
+    def parseCommand(self):
+        
+        if self.tokens.actual.type_ == "IDENTIFIER":
+            identifier = self.tokens.actual.value
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ != "EQUAL":
+                raise ValueError("Missing '=' in reference.")
+            self.tokens.selectNext()
+            value = self.parseExpression()
+            sb.setVar(identifier, value.Evaluate())
+            tree = Variable(identifier)
+
+        
+        elif self.tokens.actual.type_ == "PRINT":
+            tree = Print()
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ != "BRACKET_OPEN":
+                raise ValueError("Missing '(' in reference.")
+            self.tokens.selectNext()
+            exp = self.parseExpression()
+            tree.children[0] = exp
+            if self.tokens.actual.type_ != "BRACKET_CLOSE":
+                raise ValueError("Missing ')' in reference.")
+            self.tokens.selectNext()
+        
+        else:
+            tree = NoOp()
+        
+        if self.tokens.actual.type_ != "SEMICOLON":
+            raise ValueError("Missing ';' in reference.")
+
+        self.tokens.selectNext()
+
+        return tree
+
+    def parseBlock(self):
+
+        head = BSt() 
+        
+        while self.tokens.actual.type_ != "EOF":
+            head.children.append(self.parseCommand())
+
+        return head
+
 
     def run(self, code):
         prepro = PrePro()
-        filtered = prepro.filter("".join(code))
+        filtered = prepro.filter("".join(code).replace("\n",""))
         self.tokens = Tokenizer(filtered, -1, None)
         self.tokens.selectNext()
-        result = self.parseExpression()
-        if self.tokens.actual.type_ != "EOF":
-            raise ValueError
-        return result
+        result = self.parseBlock()
+        result.Evaluate()
 
 
 if __name__ == "__main__":
@@ -273,4 +382,4 @@ if __name__ == "__main__":
     file_name = " ".join(sys.argv[1:])
     file = open(file_name, 'r')
     content = file.readlines() 
-    print(parser.run(content).Evaluate())
+    parser.run(content)

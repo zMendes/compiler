@@ -2,20 +2,17 @@
 Compilador desenvolvido para a matéria Lógica Computacional Entrega 1
 
 ## Rodando
-Para testar a calculadora:  
-Exemplo 1:  
-```$ python3 main.py "2+ 5 -3"```  
-Exemplo 2:  
-```$ python3 main.py "12-32+100"```  
-Exemplo 3  
-```$ python3 main.py "58   + 10  - 2"```
+Para testar o compilador, rode o comando:  
+```$ python3 main.py <nome_do_arquivo>"```
 
 ## Diagrama Sintático
 
-![Diagrama.](https://imgur.com/gSQvjjz.png "Diagrama Sintático.")
+![Diagrama.](https://i.imgur.com/OD0I8o9.png "Diagrama Sintático.")
+
+![Diagrama.](https://i.imgur.com/Mxffvsv.png "Diagrama Sintático.")
 
 
 
 ## EBNF
 
-![Diagrama.](https://i.imgur.com/tO28xq4.png "Diagrama Sintático.")
+![Diagrama.](https://i.imgur.com/Hso5VnU.png "Diagrama Sintático.")

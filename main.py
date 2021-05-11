@@ -4,23 +4,26 @@ import sys
 from abc import ABCMeta, abstractmethod
 import copy
 
+
 class SymbolTable:
 
     def __init__(self):
         self.table = dict()
-    
+
     def setVar(self, var, value):
         self.table[var] = value
-    
+
     def getVar(self, var):
         return self.table[var]
 
+
 sb = SymbolTable()
+
 
 class Node(metaclass=ABCMeta):
     def __init__(self):
         pass
-    
+
     @property
     @abstractmethod
     def value():
@@ -35,10 +38,11 @@ class Node(metaclass=ABCMeta):
     def Evaluate(self):
         pass
 
+
 class BSt(Node):
     children = list
     value = int
-    
+
     def __init__(self):
         self.children = []
 
@@ -46,88 +50,154 @@ class BSt(Node):
         for child in self.children:
             child.Evaluate()
 
+
 class BinOp(Node):
-    
+
     children = list
     value = int
 
     def __init__(self, value):
         self.value = value
         self.children = [None] * 2
-    
+
     def Evaluate(self):
+
+        if self.value == "ATTRIB":
+            sb.setVar(self.children[0].value, self.children[1].Evaluate())
+            return 
+
         a = self.children[0].Evaluate()
         b = self.children[1].Evaluate()
         if self.value == "PLUS":
             return a + b
-        
+
         elif self.value == "SUB":
             return a - b
 
         elif self.value == "MULTI":
             return a * b
-        
+
         elif self.value == "DIV":
             return int(a / b)
 
-class UnOp(Node):
+        elif self.value == "BIGGER":
+            return 1 if a > b else 0
+
+        elif self.value == "LESS":
+            return 1 if a < b else  0
+
+        elif self.value == "EQUAL":
+            return 1 if a == b else  0
+
+        elif self.value == "AND":
+            return 1 if a and b else 0
+
+        elif self.value == "OR":
+            return 1 if a or b else 0 
     
+
+
+class UnOp(Node):
+
     children = list
     value = int
 
     def __init__(self, value):
         self.value = value
-        self.children = [None] 
-    
+        self.children = [None]
+
     def Evaluate(self):
 
         if self.value == "PLUS":
             return self.children[0].Evaluate()
         elif self.value == "SUB":
             return -self.children[0].Evaluate()
+        elif self.value == "NOT":
+            return not self.children[0].Evaluate()
 
 
 class IntVal(Node):
-    
+
     children = list
     value = int
 
     def __init__(self, value):
         self.value = value
-        self.children = [] 
-    
+        self.children = []
+
     def Evaluate(self):
         return self.value
+
 
 class Print(Node):
     children = list
     value = int
+
     def __init__(self):
         self.children = [None]
-    
+
     def Evaluate(self):
         print(self.children[0].Evaluate())
 
-class Variable(Node):
+
+
+class Input(Node):
+    children = list
+    value = int
+
+    def __init__(self):
+        self.children = []
+
+    def Evaluate(self):
+        return int(input())
+
+class While_loop(Node):
+
+    children = list
+    value = int
+
+    def __init__(self):
+        self.children = [None, None]
+
+    def Evaluate(self):
+        while(self.children[0].Evaluate()):
+            self.children[1].Evaluate()
+
+class Condition(Node):
+
+    children = list
+    value = int 
+
+    def __init__(self):
+        self.children = [None, None, None]
     
+    def Evaluate(self):
+        if self.children[0].Evaluate():
+            self.children[1].Evaluate()
+        elif self.children[2] != None:
+            self.children[2].Evaluate()
+
+class Variable(Node):
+
     children = list
     value = int
 
     def __init__(self, value):
         self.value = value
         self.children = []
-    
+
     def Evaluate(self):
         return sb.getVar(self.value)
 
+
 class NoOp(Node):
-    
+
     children = list
     value = int
 
     def __init__(self):
         self.children = []
-    
+
     def Evaluate(self):
         pass
 
@@ -142,7 +212,7 @@ class Token:
 class PrePro:
 
     def filter(self, text):
-                
+
         # Implemnentação baseada a partir do código abaixo:
         # https://www.geeksforgeeks.org/remove-comments-given-cc-program/
         isComment = False
@@ -204,27 +274,62 @@ class Tokenizer:
         elif self.origin[self.position] == "/":
             self.actual = Token("DIV", None)
 
+        elif self.origin[self.position] == "{":
+            self.actual = Token("BRACE_OPEN", None)
+        
+        elif self.origin[self.position] == "}":
+            self.actual = Token("BRACE_CLOSE", None)
+
         elif self.origin[self.position] == "(":
             self.actual = Token("BRACKET_OPEN", None)
-        
+
         elif self.origin[self.position] == ")":
             self.actual = Token("BRACKET_CLOSE", None)
-        
+
+        elif self.origin[self.position:self.position+2] == "||":
+            self.position+=1
+            self.actual = Token("OR", None)
+
+        elif self.origin[self.position:self.position+2] == "&&":
+            self.position+=1
+            self.actual = Token("AND", None)
+
         elif self.origin[self.position] == "=":
-            self.actual = Token("EQUAL", None)
-        
+            if self.origin[self.position+1] == "=":
+                self.actual = Token("EQUAL", None)
+                self.position+=1
+            else:
+                self.actual = Token("ATTRIB", None)
+
+        elif self.origin[self.position] == ">":
+            self.actual = Token("BIGGER", None)
+
+        elif self.origin[self.position] == "<":
+            self.actual = Token("LESS", None)
+
+        elif self.origin[self.position] == "!":
+            self.actual = Token("NOT", None)
+
         elif self.origin[self.position] == ";":
             self.actual = Token("SEMICOLON", None)
 
-        elif self.origin[self.position] != " " :
+        elif self.origin[self.position] != " ":
             identifier = ""
 
-            while self.position < len(self.origin)  and self.origin[self.position] not in self.invalid:
-                identifier+= self.origin[self.position]
-                self.position +=1
-            self.position -=1
+            while self.position < len(self.origin) and self.origin[self.position] not in self.invalid:
+                identifier += self.origin[self.position]
+                self.position += 1
+            self.position -= 1
             if (identifier == "println"):
-                self.actual = Token("PRINT", identifier)    
+                self.actual = Token("PRINT", None)
+            elif (identifier == "readln"):
+                self.actual = Token("INPUT", None)
+            elif (identifier == "while"):
+                self.actual = Token("WHILE_LOOP", None)
+            elif (identifier == "if"):
+                 self.actual = Token("IF", None)
+            elif (identifier == "else"):
+                 self.actual = Token("ELSE", None)
             else:
                 self.actual = Token("IDENTIFIER", identifier)
 
@@ -234,47 +339,173 @@ class Tokenizer:
 
 class Parser:
 
-    def parseFactor(self):
+    def parseBlock(self):
+        if self.tokens.actual.type_ != "BRACE_OPEN":
+            raise ValueError("Missing '{' in reference.")
+        self.tokens.selectNext()        
 
-        if self.tokens.actual.type_ == "INT":
-            tree = IntVal(self.tokens.actual.value)
-            self.tokens.selectNext()
+        head = BSt()
+
+        while self.tokens.actual.type_ != "BRACE_CLOSE":
+            head.children.append(self.parseCommand())
+
+        if self.tokens.actual.type_ != "BRACE_CLOSE":
+            raise ValueError("Missing '{' in reference.")
+        self.tokens.selectNext()
         
-        elif self.tokens.actual.type_ == "PLUS":
+        return head
+
+    def parseCommand(self):
+
+        if self.tokens.actual.type_ == "IDENTIFIER":
+            identifier = self.tokens.actual.value
             self.tokens.selectNext()
-            tree = UnOp("PLUS")
-            tree.children[0] = self.parseFactor() 
-        
-        elif self.tokens.actual.type_ == "SUB":
+            if self.tokens.actual.type_ != "ATTRIB":
+                print(self.tokens.actual.type_)
+                raise ValueError("Missing '=' in reference.")
             self.tokens.selectNext()
-            tree = UnOp("SUB")
-            tree.children[0] = self.parseFactor()
-        
-        elif self.tokens.actual.type_ == "BRACKET_OPEN":
+            tree = BinOp("ATTRIB")
+            tree.children[0] = Variable(identifier)
+            tree.children[1] = self.parseOrExpression()
+
+        elif self.tokens.actual.type_ == "PRINT":
+            tree = Print()
             self.tokens.selectNext()
-            tree = self.parseExpression()
+            if self.tokens.actual.type_ != "BRACKET_OPEN":
+                raise ValueError("Missing '(' in reference.")
+            self.tokens.selectNext()
+            exp = self.parseOrExpression()
+            tree.children[0] = exp
             if self.tokens.actual.type_ != "BRACKET_CLOSE":
-                raise ValueError
+                raise ValueError("Missing ')' in reference.")
             self.tokens.selectNext()
-
-        elif self.tokens.actual.type_ == "IDENTIFIER":
-            tree = Variable(self.tokens.actual.value)
-            self.tokens.selectNext()
-
- 
         
+        elif self.tokens.actual.type_ == "WHILE_LOOP":
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ != "BRACKET_OPEN":
+                raise ValueError("Missing '(' for while loop.")
+            self.tokens.selectNext()
+
+            tree = While_loop()
+            tree.children[0] = self.parseOrExpression()
+            if self.tokens.actual.type_ != "BRACKET_CLOSE":
+                raise ValueError("Missing ')' for while loop.")
+            self.tokens.selectNext()
+            tree.children[1] = self.parseCommand()
+            return tree
+
+        elif self.tokens.actual.type_ == "IF":
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ != "BRACKET_OPEN":
+                raise ValueError("Missing '(' for while loop.")
+            self.tokens.selectNext()
+
+            tree = Condition()
+            tree.children[0] = self.parseOrExpression()
+            if self.tokens.actual.type_ != "BRACKET_CLOSE":
+                raise ValueError("Missing ')' for while loop.")
+            self.tokens.selectNext()
+            tree.children[1] = self.parseCommand()
+            if self.tokens.actual.type_ == "ELSE":
+                self.tokens.selectNext()
+                tree.children[2] = self.parseCommand()
+            return tree
         else:
-           raise ValueError
-        
+            tree = self.parseBlock()
+            return tree
+
+        if self.tokens.actual.type_ != "SEMICOLON":
+            raise ValueError("Missing ';' in reference.")
+
+        self.tokens.selectNext()
+
         return tree
-            
 
+    def parseOrExpression(self):
 
+        tree = self.parseAndExpression()
+
+        while self.tokens.actual.type_ == "OR":
+            self.tokens.selectNext()
+            aux = BinOp("OR")
+            aux.children[0] = copy.deepcopy(tree)
+            aux.children[1] = self.parseAndExpression()
+            tree = copy.deepcopy(aux)
+
+        return tree
+
+    def parseAndExpression(self):
+
+        tree = self.parseEqualExpression()
+
+        while self.tokens.actual.type_ == "AND":
+            self.tokens.selectNext()
+            aux = BinOp("AND")
+            aux.children[0] = copy.deepcopy(tree)
+            aux.children[1] = self.parseEqualExpression()
+            tree = copy.deepcopy(aux)
+
+        return tree
+
+    def parseEqualExpression(self):
+
+        tree = self.parseRelativeExpression()
+
+        while self.tokens.actual.type_ == "EQUAL":
+            self.tokens.selectNext()
+            aux = BinOp("EQUAL")
+            aux.children[0] = copy.deepcopy(tree)
+            aux.children[1] = self.parseRelativeExpression()
+            tree = copy.deepcopy(aux)
+
+        return tree
+
+    def parseRelativeExpression(self):
+
+        tree = self.parseExpression()
+
+        while self.tokens.actual.type_ == "BIGGER" or self.tokens.actual.type_ == "LESS":
+            if self.tokens.actual.type_ == "BIGGER":
+                self.tokens.selectNext()
+                aux = BinOp("BIGGER")
+                aux.children[0] = copy.deepcopy(tree)
+                aux.children[1] = self.parseExpression()
+                tree = copy.deepcopy(aux)
+
+            elif self.tokens.actual.type_ == "LESS":
+                self.tokens.selectNext()
+                aux = BinOp("LESS")
+                aux.children[0] = copy.deepcopy(tree)
+                aux.children[1] = self.parseExpression()
+                tree = copy.deepcopy(aux)
+
+        return tree
+
+    def parseExpression(self):
+
+        tree = self.parseTerm()
+
+        while self.tokens.actual.type_ == "PLUS" or self.tokens.actual.type_ == "SUB":
+
+            if self.tokens.actual.type_ == "PLUS":
+                self.tokens.selectNext()
+                aux = BinOp("PLUS")
+                aux.children[0] = copy.deepcopy(tree)
+                aux.children[1] = self.parseTerm()
+                tree = copy.deepcopy(aux)
+
+            if self.tokens.actual.type_ == "SUB":
+                self.tokens.selectNext()
+                aux = BinOp("SUB")
+                aux.children[0] = copy.deepcopy(tree)
+                aux.children[1] = self.parseTerm()
+                tree = copy.deepcopy(aux)
+
+        return tree
 
     def parseTerm(self):
-        
-        tree = self.parseFactor()
 
+        tree = self.parseFactor()
 
         if self.tokens.actual.type_ == "INT":
             raise ValueError
@@ -294,83 +525,64 @@ class Parser:
                 aux.children[0] = copy.deepcopy(tree)
                 aux.children[1] = self.parseFactor()
                 tree = copy.deepcopy(aux)
-            
+
             if self.tokens.actual.type_ == "INT":
                 raise ValueError
 
         return tree
 
-    def parseExpression(self):
+    def parseFactor(self):
 
-            tree = self.parseTerm()
-
-            while self.tokens.actual.type_ == "PLUS" or self.tokens.actual.type_ == "SUB":
-
-                if self.tokens.actual.type_ == "PLUS":
-                    self.tokens.selectNext()
-                    aux = BinOp("PLUS")
-                    aux.children[0] = copy.deepcopy(tree)
-                    aux.children[1] = self.parseTerm()
-                    tree = copy.deepcopy(aux)
-
-                if self.tokens.actual.type_ == "SUB":
-                    self.tokens.selectNext()
-                    aux = BinOp("SUB")
-                    aux.children[0] = copy.deepcopy(tree)
-                    aux.children[1] = self.parseTerm()
-                    tree = copy.deepcopy(aux)
-
-
-            return tree
-    
-    def parseCommand(self):
-        
-        if self.tokens.actual.type_ == "IDENTIFIER":
-            identifier = self.tokens.actual.value
+        if self.tokens.actual.type_ == "INT":
+            tree = IntVal(self.tokens.actual.value)
             self.tokens.selectNext()
-            if self.tokens.actual.type_ != "EQUAL":
-                raise ValueError("Missing '=' in reference.")
-            self.tokens.selectNext()
-            value = self.parseExpression()
-            sb.setVar(identifier, value.Evaluate())
-            tree = Variable(identifier)
 
-        
-        elif self.tokens.actual.type_ == "PRINT":
-            tree = Print()
+        elif self.tokens.actual.type_ == "PLUS":
             self.tokens.selectNext()
-            if self.tokens.actual.type_ != "BRACKET_OPEN":
-                raise ValueError("Missing '(' in reference.")
+            tree = UnOp("PLUS")
+            tree.children[0] = self.parseFactor(    )
+
+        elif self.tokens.actual.type_ == "SUB":
             self.tokens.selectNext()
-            exp = self.parseExpression()
-            tree.children[0] = exp
+            tree = UnOp("SUB")
+            tree.children[0] = self.parseFactor()
+
+        elif self.tokens.actual.type_ == "NOT":
+            self.tokens.selectNext()
+            tree = UnOp("NOT")
+            tree.children[0] = self.parseFactor()
+
+        elif self.tokens.actual.type_ == "BRACKET_OPEN":
+            self.tokens.selectNext()
+            tree = self.parseOrExpression()
             if self.tokens.actual.type_ != "BRACKET_CLOSE":
-                raise ValueError("Missing ')' in reference.")
+                raise ValueError
             self.tokens.selectNext()
-        
-        else:
-            tree = NoOp()
-        
-        if self.tokens.actual.type_ != "SEMICOLON":
-            raise ValueError("Missing ';' in reference.")
 
-        self.tokens.selectNext()
+        elif self.tokens.actual.type_ == "IDENTIFIER":
+            tree = Variable(self.tokens.actual.value)
+            self.tokens.selectNext()
+
+        elif self.tokens.actual.type_ == "INPUT":
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ == "BRACKET_OPEN":
+                self.tokens.selectNext()
+                if self.tokens.actual.type_ == "BRACKET_CLOSE":
+                    self.tokens.selectNext()
+                    tree = Input()
+
+                else:
+                    raise ValueError
+            else:
+                raise ValueError
+        else:
+            raise ValueError
 
         return tree
 
-    def parseBlock(self):
-
-        head = BSt() 
-        
-        while self.tokens.actual.type_ != "EOF":
-            head.children.append(self.parseCommand())
-
-        return head
-
-
     def run(self, code):
         prepro = PrePro()
-        filtered = prepro.filter("".join(code).replace("\n",""))
+        filtered = prepro.filter("".join(code).replace("\n", ""))
         self.tokens = Tokenizer(filtered, -1, None)
         self.tokens.selectNext()
         result = self.parseBlock()
@@ -381,5 +593,5 @@ if __name__ == "__main__":
     parser = Parser()
     file_name = " ".join(sys.argv[1:])
     file = open(file_name, 'r')
-    content = file.readlines() 
+    content = file.readlines()
     parser.run(content)

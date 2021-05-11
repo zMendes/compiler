@@ -7,12 +7,6 @@ Para testar o compilador, rode o comando:
 
 ## Diagrama Sintático
 
-![Diagrama.](https://i.imgur.com/OD0I8o9.png "Diagrama Sintático.")
+![Diagrama.](https://i.imgur.com/o3wMXoO.png "Diagrama Sintático.")
 
-![Diagrama.](https://i.imgur.com/Mxffvsv.png "Diagrama Sintático.")
-
-
-
-## EBNF
-
-![Diagrama.](https://i.imgur.com/Hso5VnU.png "Diagrama Sintático.")
+![Diagrama.](https://i.imgur.com/Wcy4taJ.png "Diagrama Sintático.")

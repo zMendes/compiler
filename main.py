@@ -244,7 +244,7 @@ class Tokenizer:
         self.origin = origin
         self.position = position
         self.actual = actual
-        self.invalid = ["(", ")", "/", "*", "-", "+", "=", ";", " "]
+        self.invalid = ["(", ")", "/", "*", "-", "+", "=", ";", " ", ">", "<", "|", "&"]
 
     def selectNext(self):
 
@@ -253,6 +253,7 @@ class Tokenizer:
             self.actual = Token("EOF", None)
             return
         if self.origin[self.position] == "n":
+            print("ENTREI NO PULA O N ")
             self.selectNext()
         elif self.origin[self.position].isnumeric():
             number = ""
@@ -410,6 +411,12 @@ class Parser:
                 self.tokens.selectNext()
                 tree.children[2] = self.parseCommand()
             return tree
+        elif self.tokens.actual.type_ == "SEMICOLON":
+            self.tokens.selectNext()
+            tree = NoOp();
+            return tree
+
+
         else:
             tree = self.parseBlock()
             return tree

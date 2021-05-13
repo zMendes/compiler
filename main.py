@@ -244,7 +244,7 @@ class Tokenizer:
         self.origin = origin
         self.position = position
         self.actual = actual
-        self.invalid = ["(", ")", "/", "*", "-", "+", "=", ";", " ", ">", "<", "|", "&"]
+        self.invalid = ["(", ")", "/", "*", "-", "+", "=", ";", " ", ">", "<", "|", "&", "{", "}"]
 
     def selectNext(self):
 
@@ -362,7 +362,6 @@ class Parser:
             identifier = self.tokens.actual.value
             self.tokens.selectNext()
             if self.tokens.actual.type_ != "ATTRIB":
-                print(self.tokens.actual.type_)
                 raise ValueError("Missing '=' in reference.")
             self.tokens.selectNext()
             tree = BinOp("ATTRIB")

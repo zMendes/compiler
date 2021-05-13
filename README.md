@@ -1,6 +1,9 @@
 # compiler
 Compilador desenvolvido para a matéria Lógica Computacional Entrega 1
 
+## Status
+![git status](http://3.129.230.99/svg/zmendes/compiler/)
+
 ## Rodando
 Para testar o compilador, rode o comando:  
 ```$ python3 main.py <nome_do_arquivo>"```

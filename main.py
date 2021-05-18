@@ -80,12 +80,16 @@ class BinOp(Node):
 
         a = self.children[0].Evaluate()
         b = self.children[1].Evaluate()
+
+        if self.value == "EQUAL":
+            return (True, bool)  if a[0] == b[0] else (False, bool)
+
         if a[1] == str or b[1] == str:
             raise ValueError("Can't resolve arithmetic operation with string.")
-        elif a[1] == bool or b[1] == bool:
-            type = bool
-        else:
+        elif a[1] == int or b[1] == int:
             type = int
+        else:
+            type = bool
         
         if self.value == "PLUS":
             return (a[0] + b[0], type)
@@ -103,10 +107,7 @@ class BinOp(Node):
             return (True, bool)  if a[0] > b[0] else (False, bool) 
 
         elif self.value == "LESS":
-            return (True, bool)  if a[0] < b[0] else (False, bool) 
-
-        elif self.value == "EQUAL":
-            return (True, bool)  if a[0] == b[0] else (False, bool) 
+            return (True, bool)  if a[0] < b[0] else (False, bool)  
 
         elif self.value == "AND":
             return (True, bool)  if a[0] and b[0] else (False, bool) 
@@ -201,7 +202,7 @@ class Input(Node):
         self.children = []
 
     def Evaluate(self):
-        return int(input(), int)
+        return (int(input()), int)
 
 class While_loop(Node):
 
@@ -224,7 +225,10 @@ class Condition(Node):
         self.children = [None, None, None]
     
     def Evaluate(self):
-        if self.children[0].Evaluate()[0]:
+        condition  = self.children[0].Evaluate()
+        if condition[1] == str:
+            raise ValueError("Can't use type string as condition.") 
+        if condition[0]:
             self.children[1].Evaluate()
         elif self.children[2] != None:
             self.children[2].Evaluate()
@@ -399,6 +403,9 @@ class Tokenizer:
             elif (identifier == "true" or identifier == "false"):
                 self.actual = Token("BOOL", identifier)
             else:
+                if len(identifier) >1:
+                    print(identifier[0], "lskdjdj")
+                    print(ascii(identifier))
                 self.actual = Token("IDENTIFIER", identifier)
 
         else:
@@ -430,6 +437,8 @@ class Parser:
             identifier = self.tokens.actual.value
             self.tokens.selectNext()
             if self.tokens.actual.type_ != "ATTRIB":
+                print(self.tokens.actual.type_)
+                print(identifier)
                 raise ValueError("Missing '=' in reference.")
             self.tokens.selectNext()
             tree = BinOp("ATTRIB")
@@ -681,7 +690,7 @@ class Parser:
 
     def run(self, code):
         prepro = PrePro()
-        filtered = prepro.filter("".join(code).replace("\n", ""))
+        filtered = prepro.filter("".join(code).replace("\n", "").replace("\t",""))
         self.tokens = Tokenizer(filtered, -1, None)
         self.tokens.selectNext()
         result = self.parseBlock()

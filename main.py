@@ -16,7 +16,7 @@ class SymbolTable:
         self.table[var] = (None, type)
     
     def setVar(self, var, value):
-            self.table[var] = value     
+        self.table[var] = value     
 
     def getVar(self, var):
         return self.table[var]
@@ -73,9 +73,19 @@ class BinOp(Node):
             except:
                 raise ValueError("Variable not declared.")
             a = self.children[1].Evaluate()
-            if expected_type != a[1]:
-                raise ValueError("Types do not match.")
-            sb.setVar(self.children[0].value, a)
+
+            if expected_type == bool and a[0]>1:
+                sb.setVar(self.children[0].value, (True, bool))
+            elif expected_type == bool and a[0]<0:
+                sb.setVar(self.children[0].value, (False, bool))
+            elif expected_type == int and a[0] == True:
+                sb.setVar(self.children[0].value, (1, int))
+            elif expected_type == int and a[0] == False:
+                sb.setVar(self.children[0].value, (0, int))
+            elif expected_type == str and a[1] != str or expected_type != str and a[1] == str:
+                raise ValueError("Type mismatch.")
+            else:
+                sb.setVar(self.children[0].value, a)
             return 
 
         a = self.children[0].Evaluate()

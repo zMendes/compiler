@@ -10,6 +10,6 @@ Para testar o compilador, rode o comando:
 
 ## Diagrama Sintático
 
-![Diagrama.](https://i.imgur.com/o3wMXoO.png "Diagrama Sintático.")
+![Diagrama.](https://i.imgur.com/eF2nkq3.jpg "Diagrama Sintático.")
 
-![Diagrama.](https://i.imgur.com/Wcy4taJ.png "Diagrama Sintático.")
+![Diagrama.](https://i.imgur.com/MToX3qC.png "Diagrama Sintático.")

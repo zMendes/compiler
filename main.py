@@ -9,9 +9,14 @@ class SymbolTable:
 
     def __init__(self):
         self.table = dict()
-
+    
+    def setType(self, var, type):
+        if var in self.table:
+            raise ValueError("Redeclaration of same variable is not allowed.")
+        self.table[var] = (None, type)
+    
     def setVar(self, var, value):
-        self.table[var] = value
+            self.table[var] = value     
 
     def getVar(self, var):
         return self.table[var]
@@ -63,37 +68,56 @@ class BinOp(Node):
     def Evaluate(self):
 
         if self.value == "ATTRIB":
-            sb.setVar(self.children[0].value, self.children[1].Evaluate())
+            try:
+                expected_type = sb.getVar(self.children[0].value)[1]
+            except:
+                raise ValueError("Variable not declared.")
+            a = self.children[1].Evaluate()
+            if expected_type != a[1]:
+                raise ValueError("Types do not match.")
+            sb.setVar(self.children[0].value, a)
             return 
 
         a = self.children[0].Evaluate()
         b = self.children[1].Evaluate()
+        if a[1] == str or b[1] == str:
+            raise ValueError("Can't resolve arithmetic operation with string.")
+        elif a[1] == bool or b[1] == bool:
+            type = bool
+        else:
+            type = int
+        
         if self.value == "PLUS":
-            return a + b
+            return (a[0] + b[0], type)
 
         elif self.value == "SUB":
-            return a - b
+            return (a[0] - b[0], type)
 
         elif self.value == "MULTI":
-            return a * b
+            return (a[0] * b[0], type)
 
         elif self.value == "DIV":
-            return int(a / b)
+            return (int(a[0] / b[0]), type)
 
         elif self.value == "BIGGER":
-            return 1 if a > b else 0
+            return (True, bool)  if a[0] > b[0] else (False, bool) 
 
         elif self.value == "LESS":
-            return 1 if a < b else  0
+            return (True, bool)  if a[0] < b[0] else (False, bool) 
 
         elif self.value == "EQUAL":
-            return 1 if a == b else  0
+            return (True, bool)  if a[0] == b[0] else (False, bool) 
 
         elif self.value == "AND":
-            return 1 if a and b else 0
+            return (True, bool)  if a[0] and b[0] else (False, bool) 
 
         elif self.value == "OR":
-            return 1 if a or b else 0 
+            if a[0] or b[0]:
+                return (True, bool)
+            else:
+                return (False, bool)
+            print("RETURNING DA OR: ", a[0] or b[0])
+            #return ("true", bool)  if a[0] or b[0] else ("false", bool) 
     
 
 
@@ -107,13 +131,17 @@ class UnOp(Node):
         self.children = [None]
 
     def Evaluate(self):
-
+        if self.value == "DECLARATION":
+            sb.setType(self.children[0][0],self.children[0][1])
+            return 
+        result = self.children[0].Evaluate()
         if self.value == "PLUS":
-            return self.children[0].Evaluate()
+            return (result[0], result[1])
         elif self.value == "SUB":
-            return -self.children[0].Evaluate()
+            return (-result[0], result[1])
         elif self.value == "NOT":
-            return not self.children[0].Evaluate()
+            return (not result[0], result[1])
+
 
 
 class IntVal(Node):
@@ -126,7 +154,31 @@ class IntVal(Node):
         self.children = []
 
     def Evaluate(self):
-        return self.value
+        return (self.value, int)
+class BoolVal(Node):
+
+    children = list
+    value = int
+
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+    def Evaluate(self):
+        value = True if self.value == "true" else False
+        return (value, bool)
+
+class StrVal(Node):
+
+    children = list
+    value = int
+
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+    def Evaluate(self):
+        return (self.value, str)
 
 
 class Print(Node):
@@ -137,7 +189,7 @@ class Print(Node):
         self.children = [None]
 
     def Evaluate(self):
-        print(self.children[0].Evaluate())
+        print(self.children[0].Evaluate()[0])
 
 
 
@@ -149,7 +201,7 @@ class Input(Node):
         self.children = []
 
     def Evaluate(self):
-        return int(input())
+        return int(input(), int)
 
 class While_loop(Node):
 
@@ -160,7 +212,7 @@ class While_loop(Node):
         self.children = [None, None]
 
     def Evaluate(self):
-        while(self.children[0].Evaluate()):
+        while(self.children[0].Evaluate()[0]):
             self.children[1].Evaluate()
 
 class Condition(Node):
@@ -172,7 +224,7 @@ class Condition(Node):
         self.children = [None, None, None]
     
     def Evaluate(self):
-        if self.children[0].Evaluate():
+        if self.children[0].Evaluate()[0]:
             self.children[1].Evaluate()
         elif self.children[2] != None:
             self.children[2].Evaluate()
@@ -313,6 +365,17 @@ class Tokenizer:
 
         elif self.origin[self.position] == ";":
             self.actual = Token("SEMICOLON", None)
+        
+        elif self.origin[self.position] == '"':
+            self.position += 1
+            string = ""
+            while self.origin[self.position] != '"':
+                string+= self.origin[self.position]
+                self.position += 1 
+                if self.position >= len(self.origin):
+                    raise ValueError('Missing closing " in reference. ')
+            self.actual = Token("STRING", string)
+            #self.position -=1
 
         elif self.origin[self.position] != " ":
             identifier = ""
@@ -331,6 +394,10 @@ class Tokenizer:
                  self.actual = Token("IF", None)
             elif (identifier == "else"):
                  self.actual = Token("ELSE", None)
+            elif (identifier == "string" or identifier == "int" or identifier == "bool"):
+                self.actual = Token("DECLARATION", identifier)
+            elif (identifier == "true" or identifier == "false"):
+                self.actual = Token("BOOL", identifier)
             else:
                 self.actual = Token("IDENTIFIER", identifier)
 
@@ -358,6 +425,7 @@ class Parser:
 
     def parseCommand(self):
 
+
         if self.tokens.actual.type_ == "IDENTIFIER":
             identifier = self.tokens.actual.value
             self.tokens.selectNext()
@@ -367,6 +435,24 @@ class Parser:
             tree = BinOp("ATTRIB")
             tree.children[0] = Variable(identifier)
             tree.children[1] = self.parseOrExpression()
+        
+        elif self.tokens.actual.type_ == "DECLARATION":
+            tree = UnOp("DECLARATION")
+            declarationType = self.tokens.actual.value
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ != "IDENTIFIER":
+                raise ValueError("Expecting a variable. Received: ", self.tokens.actual.type_)
+            
+            if declarationType  == "string":
+                tree.children[0] =  (self.tokens.actual.value, str)
+            elif declarationType == "int":
+                tree.children[0] = (self.tokens.actual.value, int)
+            elif declarationType == "bool":
+                tree.children[0] = (self.tokens.actual.value, bool)
+            else:
+                raise ValueError("Type not recognized.")
+            self.tokens.selectNext()
+
 
         elif self.tokens.actual.type_ == "PRINT":
             tree = Print()
@@ -541,6 +627,13 @@ class Parser:
 
         if self.tokens.actual.type_ == "INT":
             tree = IntVal(self.tokens.actual.value)
+            self.tokens.selectNext()
+        elif self.tokens.actual.type_ == "STRING":
+            tree = StrVal(self.tokens.actual.value)
+            self.tokens.selectNext()
+        
+        elif self.tokens.actual.type_ == "BOOL":
+            tree = BoolVal(self.tokens.actual.value)
             self.tokens.selectNext()
 
         elif self.tokens.actual.type_ == "PLUS":

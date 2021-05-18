@@ -403,9 +403,6 @@ class Tokenizer:
             elif (identifier == "true" or identifier == "false"):
                 self.actual = Token("BOOL", identifier)
             else:
-                if len(identifier) >1:
-                    print(identifier[0], "lskdjdj")
-                    print(ascii(identifier))
                 self.actual = Token("IDENTIFIER", identifier)
 
         else:
@@ -437,8 +434,6 @@ class Parser:
             identifier = self.tokens.actual.value
             self.tokens.selectNext()
             if self.tokens.actual.type_ != "ATTRIB":
-                print(self.tokens.actual.type_)
-                print(identifier)
                 raise ValueError("Missing '=' in reference.")
             self.tokens.selectNext()
             tree = BinOp("ATTRIB")

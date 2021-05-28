@@ -9,11 +9,13 @@ class SymbolTable:
 
     def __init__(self):
         self.table = dict()
+        self.current = 4;
     
     def setType(self, var, type):
         if var in self.table:
             raise ValueError("Redeclaration of same variable is not allowed.")
-        self.table[var] = (None, type)
+        self.table[var] = (None, type, self.current)
+        self.current+=4
     
     def setVar(self, var, value):
         self.table[var] = value     
@@ -23,7 +25,8 @@ class SymbolTable:
 
 
 sb = SymbolTable()
-
+loop = 0
+if_count = 0
 
 class Node(metaclass=ABCMeta):
     def __init__(self):
@@ -73,62 +76,51 @@ class BinOp(Node):
             except:
                 raise ValueError("Variable not declared.")
             a = self.children[1].Evaluate()
-
-            if expected_type == bool and a[0]>1:
-                sb.setVar(self.children[0].value, (True, bool))
-            elif expected_type == bool and a[0]<0:
-                sb.setVar(self.children[0].value, (False, bool))
-            elif expected_type == int and a[0] == True:
-                sb.setVar(self.children[0].value, (1, int))
-            elif expected_type == int and a[0] == False:
-                sb.setVar(self.children[0].value, (0, int))
-            elif expected_type == str and a[1] != str or expected_type != str and a[1] == str:
-                raise ValueError("Type mismatch.")
-            else:
-                sb.setVar(self.children[0].value, a)
+            local = sb.getVar(self.children[0].value)[2]
+            sb.setVar(self.children[0].value, (None, a, local))
+            print("  MOV [EBP-{0}], EBX;".format(local))
             return 
 
         a = self.children[0].Evaluate()
+        print("  PUSH EBX ;")
         b = self.children[1].Evaluate()
+        print("  POP EAX ;")
 
-        if self.value == "EQUAL":
-            return (True, bool)  if a[0] == b[0] else (False, bool)
-
-        if a[1] == str or b[1] == str:
-            raise ValueError("Can't resolve arithmetic operation with string.")
-        elif a[1] == int or b[1] == int:
-            type = int
-        else:
-            type = bool
         
         if self.value == "PLUS":
-            return (a[0] + b[0], type)
+            print("  ADD EAX, EBX ;")
 
         elif self.value == "SUB":
-            return (a[0] - b[0], type)
+            print("  SUB EAX, EBX ;")
 
         elif self.value == "MULTI":
-            return (a[0] * b[0], type)
+            print("  IMUL EBX ;")
 
         elif self.value == "DIV":
-            return (int(a[0] / b[0]), type)
+            print("  DIV EAX ;")
+
+        elif self.value == "EQUAL":
+            print("  CMP EAX, EBX")
+            print("  CALL binop_je")
+            return
 
         elif self.value == "BIGGER":
-            return (True, bool)  if a[0] > b[0] else (False, bool) 
-
+            print("  CMP EAX, EBX")
+            print("  CALL binop_jg")
+            return
         elif self.value == "LESS":
-            return (True, bool)  if a[0] < b[0] else (False, bool)  
+            print("  CMP EAX, EBX")
+            print("  CALL binop_jl") 
+            return 
 
         elif self.value == "AND":
-            return (True, bool)  if a[0] and b[0] else (False, bool) 
+            print("  AND EAX, EBX ;")
 
         elif self.value == "OR":
-            if a[0] or b[0]:
-                return (True, bool)
-            else:
-                return (False, bool)
-            print("RETURNING DA OR: ", a[0] or b[0])
-            #return ("true", bool)  if a[0] or b[0] else ("false", bool) 
+            print("  OR EAX, EBX ;")
+
+        print("  MOV EBX, EAX ;")
+ 
     
 
 
@@ -143,16 +135,16 @@ class UnOp(Node):
 
     def Evaluate(self):
         if self.value == "DECLARATION":
+            print("  PUSH DWORD 0 ;")
             sb.setType(self.children[0][0],self.children[0][1])
             return 
-        result = self.children[0].Evaluate()
+        self.children[0].Evaluate()
         if self.value == "PLUS":
-            return (result[0], result[1])
+            pass
         elif self.value == "SUB":
-            return (-result[0], result[1])
+            print("  NEG EBX")
         elif self.value == "NOT":
-            return (not result[0], result[1])
-
+            print("  NOT EBX")
 
 
 class IntVal(Node):
@@ -165,7 +157,9 @@ class IntVal(Node):
         self.children = []
 
     def Evaluate(self):
-        return (self.value, int)
+        print("  MOV EBX,    {0};".format(self.value))
+        return int
+
 class BoolVal(Node):
 
     children = list
@@ -177,19 +171,8 @@ class BoolVal(Node):
 
     def Evaluate(self):
         value = True if self.value == "true" else False
-        return (value, bool)
-
-class StrVal(Node):
-
-    children = list
-    value = int
-
-    def __init__(self, value):
-        self.value = value
-        self.children = []
-
-    def Evaluate(self):
-        return (self.value, str)
+        print("  MOV EBX, {0};".format(value))
+        return bool
 
 
 class Print(Node):
@@ -200,7 +183,10 @@ class Print(Node):
         self.children = [None]
 
     def Evaluate(self):
-        print(self.children[0].Evaluate()[0])
+        self.children[0].Evaluate()
+        print("  PUSH EBX ;")
+        print("  CALL print ;")
+        print("  POP EBX ;")
 
 
 
@@ -220,11 +206,19 @@ class While_loop(Node):
     value = int
 
     def __init__(self):
+        global loop
+        self.loop = loop
+        loop +=1
         self.children = [None, None]
 
     def Evaluate(self):
-        while(self.children[0].Evaluate()[0]):
-            self.children[1].Evaluate()
+        print("  LOOP_{0}:".format(self.loop))
+        self.children[0].Evaluate()
+        print("  CMP EBX, False")
+        print("  JE EXIT_{0}".format(self.loop))
+        self.children[1].Evaluate()
+        print("  JMP LOOP_{0}".format(self.loop))
+        print("  EXIT_{0}:".format(self.loop))
 
 class Condition(Node):
 
@@ -232,16 +226,23 @@ class Condition(Node):
     value = int 
 
     def __init__(self):
+        global if_count
+
         self.children = [None, None, None]
+        self.iff = if_count
+        if_count += 1
     
     def Evaluate(self):
-        condition  = self.children[0].Evaluate()
-        if condition[1] == str:
-            raise ValueError("Can't use type string as condition.") 
-        if condition[0]:
-            self.children[1].Evaluate()
-        elif self.children[2] != None:
-            self.children[2].Evaluate()
+        self.children[0].Evaluate()
+        print("  CMP EBX, True")
+        print("  JE IF_{0}".format(self.iff))
+
+        if (self.children[2] != None):
+            self.children[2].Evaluate()        
+        print("jmp EXIT_IF{0}".format(self.iff))
+        print("  IF_{0}:".format(self.iff))
+        self.children[1].Evaluate()
+        print("  EXIT_IF{0}:".format(self.iff))
 
 class Variable(Node):
 
@@ -253,7 +254,8 @@ class Variable(Node):
         self.children = []
 
     def Evaluate(self):
-        return sb.getVar(self.value)
+        ret = sb.getVar(self.value)
+        print("  MOV EBX, [EBP-{0}] ;".format(ret[2]))
 
 
 class NoOp(Node):
@@ -318,9 +320,7 @@ class Tokenizer:
         if self.position >= len(self.origin):
             self.actual = Token("EOF", None)
             return
-        if self.origin[self.position] == "n":
-            print("ENTREI NO PULA O N ")
-            self.selectNext()
+
         elif self.origin[self.position].isnumeric():
             number = ""
             while self.position < len(self.origin) and self.origin[self.position].isnumeric():
@@ -457,8 +457,6 @@ class Parser:
             if self.tokens.actual.type_ != "IDENTIFIER":
                 raise ValueError("Expecting a variable. Received: ", self.tokens.actual.type_)
             
-            if declarationType  == "string":
-                tree.children[0] =  (self.tokens.actual.value, str)
             elif declarationType == "int":
                 tree.children[0] = (self.tokens.actual.value, int)
             elif declarationType == "bool":
@@ -642,9 +640,6 @@ class Parser:
         if self.tokens.actual.type_ == "INT":
             tree = IntVal(self.tokens.actual.value)
             self.tokens.selectNext()
-        elif self.tokens.actual.type_ == "STRING":
-            tree = StrVal(self.tokens.actual.value)
-            self.tokens.selectNext()
         
         elif self.tokens.actual.type_ == "BOOL":
             tree = BoolVal(self.tokens.actual.value)
@@ -695,7 +690,7 @@ class Parser:
 
     def run(self, code):
         prepro = PrePro()
-        filtered = prepro.filter("".join(code).replace("\n", "").replace("\t",""))
+        filtered = prepro.filter("".join(code).replace("\n", "").replace("  ",""))
         self.tokens = Tokenizer(filtered, -1, None)
         self.tokens.selectNext()
         result = self.parseBlock()
@@ -707,4 +702,11 @@ if __name__ == "__main__":
     file_name = " ".join(sys.argv[1:])
     file = open(file_name, 'r')
     content = file.readlines()
+    with open("header.txt",'r') as header:
+        print(header.read())
     parser.run(content)
+    print(
+        '''  ; interrupcao de saida
+  POP EBP
+  MOV EAX, 1
+  INT 0x80''')

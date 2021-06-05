@@ -276,9 +276,13 @@ class Function_call(Node):
         for i in range(len(self.children)):
             function_sb.setVar(function.children[0].children[i].children[0][0], self.children[i].Evaluate(sb))
 
-        ret = function.children[1].Evaluate(function_sb)
-        if function.type_ != "void":
-            return globalSB.getVar("return")
+        function.children[1].Evaluate(function_sb)
+        
+        if function.type_ != "void" and self.value != "main":
+            ret = globalSB.getVar("return")
+            if function.type_ != type(ret[0]):
+                raise ValueError("Function type and return statement do not match.")
+            return ret
             
     
 class Condition(Node):
@@ -577,6 +581,7 @@ class Parser:
 
 
         if self.tokens.actual.type_ == "IDENTIFIER":
+            
             identifier = self.tokens.actual.value
             self.tokens.selectNext()
             if self.tokens.actual.type_ == "ATTRIB":
@@ -831,19 +836,18 @@ class Parser:
             if self.tokens.actual.type_ == "BRACKET_OPEN":
                 tree = Function_call(identifier)
                 self.tokens.selectNext()
-                if self.tokens.actual.type_ == "IDENTIFIER" or "INT" or "BOOL" or "STRING":
+
+                if self.tokens.actual.type_ == "IDENTIFIER" or self.tokens.actual.type_ == "INT" or self.tokens.actual.type_ == "BOOL" or self.tokens.actual.type_ == "STRING":
                     tree.children.append(self.parseOrExpression())
                     while self.tokens.actual.type_ == "COMMA":
                         self.tokens.selectNext()
                         tree.children.append(self.parseOrExpression())
                 if self.tokens.actual.type_ != "BRACKET_CLOSE":
-                    print(self.tokens.actual.value)
                     raise ValueError("Expecting a missing ') in reference.")
                 self.tokens.selectNext()
 
             else:
                 tree = Variable(identifier)
-
 
         elif self.tokens.actual.type_ == "INPUT":
             self.tokens.selectNext()

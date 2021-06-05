@@ -54,10 +54,7 @@ class BSt(Node):
     def Evaluate(self, sb):
 
         for child in self.children:
-            if child.value == "RETURN":
-                return child
-            else:
-                child.Evaluate(sb)
+            child.Evaluate(sb)
 
 
 class BinOp(Node):
@@ -150,7 +147,7 @@ class UnOp(Node):
 
         result = self.children[0].Evaluate(sb)
         if self.value == "RETURN":
-            return result
+            globalSB.setVar("return",result)
         if self.value == "PLUS":
             return (result[0], result[1])
         elif self.value == "SUB":
@@ -281,10 +278,8 @@ class Function_call(Node):
 
         ret = function.children[1].Evaluate(function_sb)
         if function.type_ != "void":
-            ret = ret.Evaluate(function_sb)
-            if ret[1] != function.type_:
-                raise TypeError("Function and return type do not match")
-            return ret
+            return globalSB.getVar("return")
+            
     
 class Condition(Node):
 
@@ -836,12 +831,13 @@ class Parser:
             if self.tokens.actual.type_ == "BRACKET_OPEN":
                 tree = Function_call(identifier)
                 self.tokens.selectNext()
-                if self.tokens.actual.type_ == "IDENTIFIER":
+                if self.tokens.actual.type_ == "IDENTIFIER" or "INT" or "BOOL" or "STRING":
                     tree.children.append(self.parseOrExpression())
                     while self.tokens.actual.type_ == "COMMA":
                         self.tokens.selectNext()
                         tree.children.append(self.parseOrExpression())
                 if self.tokens.actual.type_ != "BRACKET_CLOSE":
+                    print(self.tokens.actual.value)
                     raise ValueError("Expecting a missing ') in reference.")
                 self.tokens.selectNext()
 

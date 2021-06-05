@@ -22,7 +22,7 @@ class SymbolTable:
         return self.table[var]
 
 
-sb = SymbolTable()
+globalSB = SymbolTable()
 
 
 class Node(metaclass=ABCMeta):
@@ -51,9 +51,13 @@ class BSt(Node):
     def __init__(self):
         self.children = []
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
+
         for child in self.children:
-            child.Evaluate()
+            if child.value == "RETURN":
+                return child
+            else:
+                child.Evaluate(sb)
 
 
 class BinOp(Node):
@@ -65,14 +69,14 @@ class BinOp(Node):
         self.value = value
         self.children = [None] * 2
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
 
         if self.value == "ATTRIB":
             try:
                 expected_type = sb.getVar(self.children[0].value)[1]
             except:
                 raise ValueError("Variable not declared.")
-            a = self.children[1].Evaluate()
+            a = self.children[1].Evaluate(sb)
 
             if expected_type == bool and a[0]>1:
                 sb.setVar(self.children[0].value, (True, bool))
@@ -88,8 +92,8 @@ class BinOp(Node):
                 sb.setVar(self.children[0].value, a)
             return 
 
-        a = self.children[0].Evaluate()
-        b = self.children[1].Evaluate()
+        a = self.children[0].Evaluate(sb)
+        b = self.children[1].Evaluate(sb)
 
         if self.value == "EQUAL":
             return (True, bool)  if a[0] == b[0] else (False, bool)
@@ -127,8 +131,6 @@ class BinOp(Node):
                 return (True, bool)
             else:
                 return (False, bool)
-            print("RETURNING DA OR: ", a[0] or b[0])
-            #return ("true", bool)  if a[0] or b[0] else ("false", bool) 
     
 
 
@@ -141,11 +143,14 @@ class UnOp(Node):
         self.value = value
         self.children = [None]
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
         if self.value == "DECLARATION":
             sb.setType(self.children[0][0],self.children[0][1])
             return 
-        result = self.children[0].Evaluate()
+
+        result = self.children[0].Evaluate(sb)
+        if self.value == "RETURN":
+            return result
         if self.value == "PLUS":
             return (result[0], result[1])
         elif self.value == "SUB":
@@ -164,7 +169,7 @@ class IntVal(Node):
         self.value = value
         self.children = []
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
         return (self.value, int)
 class BoolVal(Node):
 
@@ -175,7 +180,7 @@ class BoolVal(Node):
         self.value = value
         self.children = []
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
         value = True if self.value == "true" else False
         return (value, bool)
 
@@ -188,7 +193,7 @@ class StrVal(Node):
         self.value = value
         self.children = []
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
         return (self.value, str)
 
 
@@ -199,8 +204,8 @@ class Print(Node):
     def __init__(self):
         self.children = [None]
 
-    def Evaluate(self):
-        print(self.children[0].Evaluate()[0])
+    def Evaluate(self, sb):
+        print(self.children[0].Evaluate(sb)[0])
 
 
 
@@ -211,7 +216,7 @@ class Input(Node):
     def __init__(self):
         self.children = []
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
         return (int(input()), int)
 
 class While_loop(Node):
@@ -222,10 +227,65 @@ class While_loop(Node):
     def __init__(self):
         self.children = [None, None]
 
-    def Evaluate(self):
-        while(self.children[0].Evaluate()[0]):
-            self.children[1].Evaluate()
+    def Evaluate(self, sb):
+        while(self.children[0].Evaluate(sb)[0]):
+            self.children[1].Evaluate(sb)
 
+class Var_dec(Node):
+    
+    children = list
+    value = int
+
+    def __init__(self):
+        self.children = []
+    
+    def Evaluate(self, sb):
+        for child in self.children:
+            child.Evaluate(sb)
+
+class Function_def(Node):
+    
+    children = list
+    value = int
+
+    def __init__(self, value, type_):
+        self.value = value
+        self.children = [None, None]
+        self.type_ = type_
+    
+    def Evaluate(self, sb):
+        if self.type_ != "void" and self.children[1].children[-1].value != "RETURN":
+            raise ValueError("Expecting a missing 'return' statement.")
+        globalSB.setVar(self.value,  self)
+
+        
+class Function_call(Node):
+
+    children = list
+    value = int
+
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+    def Evaluate(self, sb):
+        #Fazer o call da function e passar argumentos aqui
+        function_sb = SymbolTable()
+        function = globalSB.getVar(self.value)
+        
+        function.children[0].Evaluate(function_sb)
+        if (len(self.children) != len(function.children[0].children)):
+            raise ValueError("Number of arguments is invalid in reference.")
+        for i in range(len(self.children)):
+            function_sb.setVar(function.children[0].children[i].children[0][0], self.children[i].Evaluate(sb))
+
+        ret = function.children[1].Evaluate(function_sb)
+        if function.type_ != "void":
+            ret = ret.Evaluate(function_sb)
+            if ret[1] != function.type_:
+                raise TypeError("Function and return type do not match")
+            return ret
+    
 class Condition(Node):
 
     children = list
@@ -234,14 +294,14 @@ class Condition(Node):
     def __init__(self):
         self.children = [None, None, None]
     
-    def Evaluate(self):
-        condition  = self.children[0].Evaluate()
+    def Evaluate(self, sb):
+        condition  = self.children[0].Evaluate(sb)
         if condition[1] == str:
             raise ValueError("Can't use type string as condition.") 
         if condition[0]:
-            self.children[1].Evaluate()
+            self.children[1].Evaluate(sb)
         elif self.children[2] != None:
-            self.children[2].Evaluate()
+            self.children[2].Evaluate(sb)
 
 class Variable(Node):
 
@@ -252,7 +312,7 @@ class Variable(Node):
         self.value = value
         self.children = []
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
         return sb.getVar(self.value)
 
 
@@ -264,7 +324,7 @@ class NoOp(Node):
     def __init__(self):
         self.children = []
 
-    def Evaluate(self):
+    def Evaluate(self, sb):
         pass
 
 
@@ -310,7 +370,7 @@ class Tokenizer:
         self.origin = origin
         self.position = position
         self.actual = actual
-        self.invalid = ["(", ")", "/", "*", "-", "+", "=", ";", " ", ">", "<", "|", "&", "{", "}"]
+        self.invalid = ["(", ")", "/", "*", "-", "+", "=", ";", " ", ">", "<", "|", "&", "{", "}", ","]
 
     def selectNext(self):
 
@@ -379,6 +439,9 @@ class Tokenizer:
 
         elif self.origin[self.position] == ";":
             self.actual = Token("SEMICOLON", None)
+
+        elif self.origin[self.position] == ",":
+            self.actual = Token("COMMA", None)
         
         elif self.origin[self.position] == '"':
             self.position += 1
@@ -408,10 +471,12 @@ class Tokenizer:
                  self.actual = Token("IF", None)
             elif (identifier == "else"):
                  self.actual = Token("ELSE", None)
-            elif (identifier == "string" or identifier == "int" or identifier == "bool"):
+            elif (identifier == "string" or identifier == "int" or identifier == "bool" or identifier == "void"):
                 self.actual = Token("DECLARATION", identifier)
             elif (identifier == "true" or identifier == "false"):
                 self.actual = Token("BOOL", identifier)
+            elif (identifier == "return"):
+                self.actual = Token("RETURN", None)
             else:
                 self.actual = Token("IDENTIFIER", identifier)
 
@@ -420,6 +485,82 @@ class Tokenizer:
 
 
 class Parser:
+
+    def parseFuncDefBlock(self):
+
+        tree = BSt()
+        
+        while self.tokens.actual.type_ == "DECLARATION":
+            type_ = self.tokens.actual.value
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ != "IDENTIFIER":
+                raise ValueError("Expecting identifier.")
+            if type_  == "string":
+                type_actual  = str
+            elif type_ == "int":
+                type_actual  = int
+            elif type_ == "bool":
+                type_actual  = bool
+            elif type_ == "void":
+                type_actual = "void"
+            else:
+                raise ValueError("Type not recognized.")
+            func = Function_def(self.tokens.actual.value, type_actual)
+            var_dec = Var_dec()
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ != "BRACKET_OPEN":
+                raise ValueError("Expecting missing '(' in reference.")
+            self.tokens.selectNext()
+            if self.tokens.actual.type_ == "DECLARATION":
+                var = UnOp("DECLARATION")
+                declarationType = self.tokens.actual.value
+                self.tokens.selectNext()
+                if self.tokens.actual.type_ != "IDENTIFIER":
+                    raise ValueError("Expeting identifier in reference. ")
+                
+                if declarationType  == "string":
+                    var.children[0] =  (self.tokens.actual.value, str)
+                elif declarationType == "int":
+                    var.children[0] = (self.tokens.actual.value, int)
+                elif declarationType == "bool":
+                    var.children[0] = (self.tokens.actual.value, bool)
+                else:
+                    raise ValueError("Type not recognized.")                
+                self.tokens.selectNext()
+                var_dec.children.append(copy.deepcopy(var))
+
+
+                while self.tokens.actual.type_ == "COMMA":
+                    var = UnOp("DECLARATION")
+                    self.tokens.selectNext()
+                    if self.tokens.actual.type_ != "DECLARATION":
+                        raise ValueError("Expecting a declaration type in reference.")
+                    declarationType = self.tokens.actual.value
+                    self.tokens.selectNext()
+                    if self.tokens.actual.type_ != "IDENTIFIER":
+                        raise ValueError("Expecting missing identifier in reference.")
+                    if declarationType  == "string":
+                        var.children[0] =  (self.tokens.actual.value, str)
+                    elif declarationType == "int":
+                        var.children[0] = (self.tokens.actual.value, int)
+                    elif declarationType == "bool":
+                        var.children[0] = (self.tokens.actual.value, bool)
+                    else:
+                        raise ValueError("Type not recognized.")                
+                    var_dec.children.append(copy.deepcopy(var))
+                    self.tokens.selectNext()
+                
+                    
+            if self.tokens.actual.type_ != "BRACKET_CLOSE":
+                raise ValueError("Expecting missing ')' in reference.")
+            self.tokens.selectNext()
+            func.children[0] = copy.deepcopy(var_dec)
+            func.children[1] = self.parseCommand()
+
+            tree.children.append(copy.deepcopy(func))
+        call_main = Function_call("main")
+        tree.children.append(call_main)
+        return tree
 
     def parseBlock(self):
         if self.tokens.actual.type_ != "BRACE_OPEN":
@@ -443,12 +584,23 @@ class Parser:
         if self.tokens.actual.type_ == "IDENTIFIER":
             identifier = self.tokens.actual.value
             self.tokens.selectNext()
-            if self.tokens.actual.type_ != "ATTRIB":
-                raise ValueError("Missing '=' in reference.")
-            self.tokens.selectNext()
-            tree = BinOp("ATTRIB")
-            tree.children[0] = Variable(identifier)
-            tree.children[1] = self.parseOrExpression()
+            if self.tokens.actual.type_ == "ATTRIB":
+                self.tokens.selectNext()
+                tree = BinOp("ATTRIB")
+                tree.children[0] = Variable(identifier)
+                tree.children[1] = self.parseOrExpression()
+            elif self.tokens.actual.type_=="BRACKET_OPEN":
+                self.tokens.selectNext()
+                tree = Function_call(identifier)
+                if self.tokens.actual.type_!= "BRACKET_CLOSE":
+                    tree.children.append(self.parseOrExpression())
+                while self.tokens.actual.type_ == "COMMA":
+                    self.tokens.selectNext()
+                    tree.children.append(self.parseOrExpression())
+                
+                if self.tokens.actual.type_!= "BRACKET_CLOSE":
+                    raise ValueError("Expecting missing ')' in reference.")
+                self.tokens.selectNext()
         
         elif self.tokens.actual.type_ == "DECLARATION":
             tree = UnOp("DECLARATION")
@@ -466,7 +618,12 @@ class Parser:
             else:
                 raise ValueError("Type not recognized.")
             self.tokens.selectNext()
+            
+        elif self.tokens.actual.type_ == "RETURN":
+            self.tokens.selectNext()
 
+            tree = UnOp("RETURN")
+            tree.children[0] = self.parseOrExpression()
 
         elif self.tokens.actual.type_ == "PRINT":
             tree = Print()
@@ -673,8 +830,24 @@ class Parser:
             self.tokens.selectNext()
 
         elif self.tokens.actual.type_ == "IDENTIFIER":
-            tree = Variable(self.tokens.actual.value)
+            identifier = self.tokens.actual.value
             self.tokens.selectNext()
+            # Se for '(' é chamada de função, não variável
+            if self.tokens.actual.type_ == "BRACKET_OPEN":
+                tree = Function_call(identifier)
+                self.tokens.selectNext()
+                if self.tokens.actual.type_ == "IDENTIFIER":
+                    tree.children.append(self.parseOrExpression())
+                    while self.tokens.actual.type_ == "COMMA":
+                        self.tokens.selectNext()
+                        tree.children.append(self.parseOrExpression())
+                if self.tokens.actual.type_ != "BRACKET_CLOSE":
+                    raise ValueError("Expecting a missing ') in reference.")
+                self.tokens.selectNext()
+
+            else:
+                tree = Variable(identifier)
+
 
         elif self.tokens.actual.type_ == "INPUT":
             self.tokens.selectNext()
@@ -698,8 +871,9 @@ class Parser:
         filtered = prepro.filter("".join(code).replace("\n", "").replace("\t",""))
         self.tokens = Tokenizer(filtered, -1, None)
         self.tokens.selectNext()
-        result = self.parseBlock()
-        result.Evaluate()
+        result = self.parseFuncDefBlock()
+        result.Evaluate(globalSB)
+        
 
 
 if __name__ == "__main__":

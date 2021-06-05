@@ -19,7 +19,10 @@ class SymbolTable:
         self.table[var] = value     
 
     def getVar(self, var):
-        return self.table[var]
+        try:
+            return self.table[var]
+        except:
+            return None
 
 
 globalSB = SymbolTable()
@@ -55,6 +58,8 @@ class BSt(Node):
 
         for child in self.children:
             child.Evaluate(sb)
+            if child.value == "RETURN":
+                return
 
 
 class BinOp(Node):
@@ -251,6 +256,10 @@ class Function_def(Node):
         self.type_ = type_
     
     def Evaluate(self, sb):
+
+        if globalSB.getVar(self.value) != None:
+            raise ValueError("Redefinition of same function is not possible.")
+    
         #if self.type_ != "void" and self.children[1].children[-1].value != "RETURN":
          #   raise ValueError("Expecting a missing 'return' statement.")
         globalSB.setVar(self.value,  self)
@@ -557,6 +566,8 @@ class Parser:
             func.children[1] = self.parseCommand()
 
             tree.children.append(copy.deepcopy(func))
+        if self.tokens.actual.type_ != "EOF":
+            raise ValueError("Invalid function.")
         call_main = Function_call("main")
         tree.children.append(call_main)
         return tree

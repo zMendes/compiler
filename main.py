@@ -254,8 +254,8 @@ class Function_def(Node):
         self.type_ = type_
     
     def Evaluate(self, sb):
-        if self.type_ != "void" and self.children[1].children[-1].value != "RETURN":
-            raise ValueError("Expecting a missing 'return' statement.")
+        #if self.type_ != "void" and self.children[1].children[-1].value != "RETURN":
+         #   raise ValueError("Expecting a missing 'return' statement.")
         globalSB.setVar(self.value,  self)
 
         
